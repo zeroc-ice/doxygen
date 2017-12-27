@@ -133,7 +133,8 @@ class Entry
     static const uint64 Enum            = (1ULL<<12); // for Java-style enums
     static const uint64 Service         = (1ULL<<13); // UNO IDL
     static const uint64 Singleton       = (1ULL<<14); // UNO IDL
-    static const uint64 ForwardDecl     = (1ULL<<15); // forward declarad template classes
+    static const uint64 ForwardDecl     = (1ULL<<15); // forward declared template classes
+    static const uint64 Local           = (1ULL<<16); // for Slice types
 
     // member specifiers (add new items to the beginning)
     static const uint64 PrivateGettable     = (1ULL<<20); // C# private getter
@@ -288,6 +289,7 @@ class Entry
     bool        artificial;   //!< Artificially introduced item
     GroupDocType groupDocType;
     QCString    id;           //!< libclang id
+    QCString    metaData;     //!< Slice metadata
 
 
     static int  num;          //!< counts the total number of entries

@@ -582,6 +582,16 @@ Go to the <a href="commands.html">next</a> section or return to the
 ]]>
       </docs>
     </option>
+    <option type='bool' id='OPTIMIZE_OUTPUT_SLICE' defval='0'>
+      <docs>
+<![CDATA[
+ Set the \c OPTIMIZE_OUTPUT_SLICE tag to \c YES if your project consists of Slice
+ sources only. Doxygen will then generate output that is more tailored 
+ for that language. For instance, namespaces will be presented as modules, 
+ types will be separated into more groups, etc.
+]]>
+      </docs>
+    </option>
     <option type='list' id='EXTENSION_MAPPING' format='string'>
       <docs>
 <![CDATA[
@@ -590,7 +600,7 @@ Go to the <a href="commands.html">next</a> section or return to the
  Doxygen has a built-in mapping, but you can override or extend it using this tag.
  The format is <code>ext=language</code>, where \c ext is a file extension, and language is one of
  the parsers supported by doxygen: IDL, Java, Javascript, C#, C, C++, D, PHP,
- Objective-C, Python, Fortran (fixed format Fortran: FortranFixed,
+ Objective-C, Python, Slice, Fortran (fixed format Fortran: FortranFixed,
  free formatted Fortran: FortranFree, unknown formatted Fortran: Fortran. In
  the later case the parser tries to guess whether the code is fixed or free
  formatted code, this is the default for Fortran type files), VHDL. 
@@ -1347,6 +1357,7 @@ FILE_VERSION_INFO = "cleartool desc -fmt \%Vn"
       <value name='*.vhdl'/>
       <value name='*.ucf'/>
       <value name='*.qsf'/>
+      <value name='*.ice'/>
     </option>
     <option type='bool' id='RECURSIVE' defval='0'>
       <docs>

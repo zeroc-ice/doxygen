@@ -31,7 +31,7 @@
 #include <qstack.h>
 #include <qregexp.h>
 #include <qfile.h>
-  
+
 #include "scanner.h"
 #include "entry.h"
 #include "message.h"
@@ -126,7 +126,10 @@ static bool             insidePHP   = FALSE;		//!< processing PHP code?
 static bool             insideObjC  = FALSE;            //!< processing Objective C code?
 static bool             insideCli   = FALSE;            //!< processing C++/CLI code?
 static bool             insideJS    = FALSE;            //!< processing JavaScript code?
+static bool             insideSlice = FALSE;            //!< processing Slice code?
 static bool             insideCpp   = TRUE;             //!< processing C/C++ code
+
+static bool             sliceOpt = FALSE;
 
 static bool             insideCppQuote = FALSE;
 static bool             insideProtocolList = FALSE;
@@ -218,6 +221,7 @@ static void initParser()
   insideFormula = FALSE;
   insideCode=FALSE;
   insideCli=Config_getBool(CPP_CLI_SUPPORT);
+  sliceOpt=Config_getBool(OPTIMIZE_OUTPUT_SLICE);
   previous = 0;
   firstTypedefEntry = 0;
   tempEntry = 0;
@@ -375,15 +379,16 @@ static bool nameIsOperator(QCString &name)
 static void setContext()
 {
   QCString fileName = yyFileName;
-  language   = getLanguageFromFileName(fileName);
-  insideIDL  = language==SrcLangExt_IDL;
-  insideJava = language==SrcLangExt_Java;
-  insideCS   = language==SrcLangExt_CSharp; 
-  insideD    = language==SrcLangExt_D;
-  insidePHP  = language==SrcLangExt_PHP;
-  insideObjC = language==SrcLangExt_ObjC;
-  insideJS   = language==SrcLangExt_JS;
-  insideCpp  = language==SrcLangExt_Cpp;
+  language    = getLanguageFromFileName(fileName);
+  insideIDL   = language==SrcLangExt_IDL;
+  insideJava  = language==SrcLangExt_Java;
+  insideCS    = language==SrcLangExt_CSharp; 
+  insideD     = language==SrcLangExt_D;
+  insidePHP   = language==SrcLangExt_PHP;
+  insideObjC  = language==SrcLangExt_ObjC;
+  insideJS    = language==SrcLangExt_JS;
+  insideSlice = language==SrcLangExt_Slice;
+  insideCpp   = language==SrcLangExt_Cpp;
   if ( insidePHP )
   {
     useOverrideCommands = TRUE;
@@ -759,6 +764,14 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 %x      IDLAttribute
 %x      IDLProp
 %x      IDLPropName
+
+ /** Slice states */
+
+%x      SliceMetadata
+%x      SliceSequence
+%x      SliceSequenceName
+%x      SliceDictionary
+%x      SliceDictionaryName
 
  /** Prototype scanner states */
 
@@ -1217,6 +1230,38 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
                                           unput('{');
   					  BEGIN( Function );
   					}
+<FindMembers>{B}*"sequence"{BN}*"<"{BN}* {
+					  if (insideSlice)
+					  {
+                                            lineCount();
+					    current->bodyLine = yyLineNr;
+                                            current->fileName = yyFileName ;
+					    current->startLine = yyLineNr ;
+					    current->startColumn = yyColNr;
+                                            current->args.resize(0);
+					    current->section = Entry::TYPEDEF_SEC ;
+                                            isTypedef = TRUE;
+					    BEGIN( SliceSequence );
+					  }
+					  else
+					    REJECT;
+					}
+<FindMembers>{B}*"dictionary"{BN}*"<"{BN}* {
+					  if (insideSlice)
+					  {
+                                            lineCount();
+					    current->bodyLine = yyLineNr;
+                                            current->fileName = yyFileName ;
+					    current->startLine = yyLineNr ;
+					    current->startColumn = yyColNr;
+                                            current->args.resize(0);
+					    current->section = Entry::TYPEDEF_SEC ;
+                                            isTypedef = TRUE;
+					    BEGIN( SliceDictionary );
+					  }
+					  else
+					    REJECT;
+					}
 <FindMembers>{BN}{1,80}		        {
   					  lineCount();
   					}
@@ -1389,6 +1434,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 <FindMembers>{B}*"explicit"{BN}+	{ current->spec|=Entry::Explicit;
                                           lineCount(); 
                                         }
+<FindMembers>{B}*"local"{BN}+		{ current->spec|=Entry::Local;
+                                          lineCount(); 
+                                        }
 <FindMembers>{B}*"@required"{BN}+	{ // Objective C 2.0 protocol required section
                                           current->spec=(current->spec & ~Entry::Optional) | Entry::Required;
                                           lineCount(); 
@@ -1423,7 +1471,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					}
 <FindMembers>{B}*"module"{BN}+		{ 
 					  lineCount();
-                                          if (insideIDL)
+                                          if (insideIDL || insideSlice)
 					  {
   					    isTypedef=FALSE;
 					    current->section = Entry::NAMESPACE_SEC;
@@ -1526,15 +1574,15 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    current->name = QCString(yytext).stripWhiteSpace();
 					  }
 					}
-<FindMembers>{BN}*((("disp")?"interface")|"valuetype"){BN}+ 	{ // M$/Corba/UNO IDL/Java interface
+<FindMembers>{BN}*((("disp")?"interface")|"valuetype"){BN}+ 	{ // M$/Corba/UNO IDL/Java/Slice interface
 					  lineCount();
-                                          if (insideIDL || insideJava || insideCS || insideD || insidePHP)
+                                          if (insideIDL || insideJava || insideCS || insideD || insidePHP || insideSlice)
 					  {
   					    isTypedef=FALSE;
 					    current->section = Entry::CLASS_SEC;
-                        current->spec = Entry::Interface |
-                          // preserve UNO IDL [optional] or published
-                          (current->spec & (Entry::Optional|Entry::Published));
+                        		    current->spec = Entry::Interface |
+                                                // preserve UNO IDL [optional], published, Slice local
+                                                (current->spec & (Entry::Optional|Entry::Published|Entry::Local));
 					    addType( current ) ;
 					    current->type += " interface" ;
 					    current->fileName  = yyFileName;
@@ -1598,11 +1646,13 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  current->bodyLine  = yyLineNr;
 					  BEGIN( CompoundName );
   					}
-<FindMembers>{B}*"exception"{BN}+ 	{ // Corba IDL exception
+<FindMembers>{B}*"exception"{BN}+ 	{ // Corba IDL/Slice exception
   					  isTypedef=FALSE;
 					  current->section = Entry::CLASS_SEC;
+                                          // preserve UNO IDL, Slice local
 					  current->spec    = Entry::Exception |
-					    (current->spec & Entry::Published); // preserve UNO IDL
+					    (current->spec & Entry::Published) |
+					    (current->spec & Entry::Local);
 					  addType( current ) ;
 					  current->type += " exception" ;
 					  current->fileName  = yyFileName;
@@ -1621,6 +1671,16 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
                                           bool isVolatile=decl.find("volatile")!=-1;
   					  current->section = Entry::CLASS_SEC;
 					  addType( current ) ;
+                                          uint64 spec = current->spec;
+					  if (insidePHP && current->spec&Entry::Abstract)
+					  {
+					    // convert Abstract to AbstractClass
+					    current->spec=(current->spec&~Entry::Abstract)|Entry::AbstractClass;
+					  }
+                                          if (insideSlice && spec&Entry::Local)
+                                          {
+                                            current->spec|=Entry::Local;
+                                          }
                                           if (isConst)
                                           {
                                             current->type += " const";
@@ -1641,11 +1701,6 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  }
 					  lineCount() ;
 					  if (yytext[yyleng-1]=='{') unput('{');
-					  if (insidePHP && current->spec&Entry::Abstract)
-					  {
-					    // convert Abstract to AbstractClass
-					    current->spec=(current->spec&~Entry::Abstract)|Entry::AbstractClass;
-					  }
 					  BEGIN( CompoundName ) ;
 					}
 <FindMembers>{B}*"value class{" |         // C++/CLI extension
@@ -1721,10 +1776,13 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  isTypedef=decl.find("typedef")!=-1;
                                           bool isConst=decl.find("const")!=-1;
                                           bool isVolatile=decl.find("volatile")!=-1;
+                                          uint64 spec = current->spec;
   					  current->section = Entry::CLASS_SEC ;
+                                          // preserve UNO IDL & Inline attributes, Slice local
 					  current->spec    = Entry::Struct |
 					    (current->spec & Entry::Published) |
-                                            (current->spec & Entry::Inline); // preserve UNO IDL & Inline attributes
+                                            (current->spec & Entry::Inline) |
+                                            (current->spec & Entry::Local); 
 					  // bug 582676: can be a struct nested in an interface so keep insideObjC state
 					  //current->objc    = insideObjC = FALSE;
 					  addType( current ) ;
@@ -3391,7 +3449,14 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					}
 
 <FindMembers>"["			{ 
-  					  if (!insideCS &&  
+                                          if (insideSlice)
+                                          {
+          				    squareCount=1;
+                                            lastSquareContext = YY_START;
+                                            current->metaData += "[";
+                                            BEGIN( SliceMetadata );
+                                          }
+                                          else if (!insideCS &&  
 					      (current->name.isEmpty() || 
 					       current->name=="typedef"
 					      )
@@ -3431,6 +3496,26 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    BEGIN( Array ) ;
 					  }
 					}
+<SliceMetadata>"["                      { // Global metadata.
+          				  squareCount++;
+                                          current->metaData += "[";
+                                        }
+<SliceMetadata>{BN}*                    {
+          				  lineCount();
+                                        }
+<SliceMetadata>\"[^\"]*\"               {
+                                          current->metaData += yytext;
+                                        }
+<SliceMetadata>","                      {
+                                          current->metaData += yytext;
+                                        }
+<SliceMetadata>"]"                      {
+                                          current->metaData += yytext;
+                                          if (--squareCount<=0)
+                                          {
+                                            BEGIN (lastSquareContext);
+                                          }
+                                        }
 <IDLAttribute>"]"			{
   					  // end of IDL function attribute
 					  if (--squareCount<=0)
@@ -3817,7 +3902,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 						current = new Entry(*current);
 						if (current->section==Entry::NAMESPACE_SEC || 
 						    (current->spec==Entry::Interface) ||
-						    insideJava || insidePHP || insideCS || insideD || insideJS
+						    insideJava || insidePHP || insideCS || insideD || insideJS ||
+                                                    insideSlice
 						   )
 						{ // namespaces and interfaces and java classes ends with a closing bracket without semicolon
 						  current->reset();
@@ -5522,7 +5608,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    roundCount=0;
 					    BEGIN(SkipUnionSwitch);
 					  }
-					  else if ((insideJava || insidePHP || insideJS) && (qstrcmp(yytext,"implements")==0 || qstrcmp(yytext,"extends")==0))
+					  else if ((insideJava || insidePHP || insideJS || insideSlice) && (qstrcmp(yytext,"implements")==0 || qstrcmp(yytext,"extends")==0))
 					  {
   					    current->type.resize(0);
 					    baseProt=Public;
@@ -5949,7 +6035,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  }
 					  if ((current->spec & (Entry::Interface|Entry::Struct)) || 
 					      insideJava || insidePHP || insideCS || 
-					      insideD || insideObjC || insideIDL)
+					      insideD || insideObjC || insideIDL || insideSlice)
 					  {
 					    baseProt=Public;
 					  }
@@ -6233,8 +6319,67 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 <CSAccessorDecl>.			{}
 <CSAccessorDecl>\n			{ lineCount(); }
 
+ /* ---- Slice-specific rules ------ */
 
+<SliceSequence>{SCOPEID}                {
+                                            if (current->spec&Entry::Local)
+                                            {
+                                              current->type = "local ";
+                                            }
+  					    current->type += "sequence<";
+  					    current->type += yytext;
+  					    current->type += ">";
+                                        }
 
+<SliceSequence>{BN}*">"{BN}*            {
+                                            lineCount();
+					    BEGIN(SliceSequenceName);
+                                        }
+
+<SliceSequenceName>{ID}{BN}*            {
+                                            lineCount();
+					    current->name = yytext ;
+					    current->name = current->name.stripWhiteSpace();
+                                        }
+
+<SliceSequenceName>";"                  {
+					    current->section = Entry::VARIABLE_SEC;
+					    current_root->addSubEntry(current);
+					    current = new Entry;
+					    initEntry();
+					    BEGIN(FindMembers);
+                                        }
+
+<SliceDictionary>{SCOPEID}{BN}*","{BN}*{SCOPEID} {
+                                            lineCount();
+                                            if (current->spec&Entry::Local)
+                                            {
+                                              current->type = "local ";
+                                            }
+  					    current->type += "dictionary<";
+  					    current->type += yytext;
+  					    current->type += ">";
+                                            current->type = current->type.simplifyWhiteSpace();
+                                        }
+
+<SliceDictionary>{BN}*">"{BN}*          {
+                                            lineCount();
+					    BEGIN(SliceDictionaryName);
+                                        }
+
+<SliceDictionaryName>{ID}{BN}*          {
+                                            lineCount();
+					    current->name = yytext ;
+					    current->name = current->name.stripWhiteSpace();
+                                        }
+
+<SliceDictionaryName>";"                {
+					    current->section = Entry::VARIABLE_SEC;
+					    current_root->addSubEntry(current);
+					    current = new Entry;
+					    initEntry();
+					    BEGIN(FindMembers);
+                                        }
 
  /**********************************************************************************/
  /******************** Documentation block related rules ***************************/
@@ -6814,7 +6959,7 @@ static void parseCompounds(Entry *rt)
       // set default protection based on the compound type
       if( ce->section==Entry::CLASS_SEC ) // class
       {
-        if (insidePHP || insideD || insideJS || insideIDL)
+        if (insidePHP || insideD || insideJS || insideIDL || insideSlice)
 	{
           current->protection = protection = Public ; 
 	}

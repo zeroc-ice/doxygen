@@ -93,6 +93,8 @@ class DocbookSectionMapper : public QIntDict<char>
     insert(MemberListType_decDefineMembers,"define");
     insert(MemberListType_decProtoMembers,"prototype");
     insert(MemberListType_decTypedefMembers,"typedef");
+    insert(MemberListType_decSequenceMembers,"sequence");
+    insert(MemberListType_decDictionaryMembers,"dictionary");
     insert(MemberListType_decEnumMembers,"enum");
     insert(MemberListType_decFuncMembers,"func");
     insert(MemberListType_decVarMembers,"var");
@@ -417,20 +419,22 @@ static void generateDocbookForMember(MemberDef *md,FTextStream &t,Definition *de
   QCString memType;
   switch (md->memberType())
   {
-    case MemberType_Define:      memType="define";    break;
-    case MemberType_Function:    memType="function";  break;
-    case MemberType_Variable:    memType="variable";  break;
-    case MemberType_Typedef:     memType="typedef";   break;
-    case MemberType_Enumeration: memType="enum";      break;
-    case MemberType_EnumValue:   ASSERT(0);           break;
-    case MemberType_Signal:      memType="signal";    break;
-    case MemberType_Slot:        memType="slot";      break;
-    case MemberType_Friend:      memType="friend";    break;
-    case MemberType_DCOP:        memType="dcop";      break;
-    case MemberType_Property:    memType="property";  break;
-    case MemberType_Event:       memType="event";     break;
-    case MemberType_Interface:   memType="interface"; break;
-    case MemberType_Service:     memType="service";   break;
+    case MemberType_Define:      memType="define";     break;
+    case MemberType_Function:    memType="function";   break;
+    case MemberType_Variable:    memType="variable";   break;
+    case MemberType_Typedef:     memType="typedef";    break;
+    case MemberType_Enumeration: memType="enum";       break;
+    case MemberType_EnumValue:   ASSERT(0);            break;
+    case MemberType_Signal:      memType="signal";     break;
+    case MemberType_Slot:        memType="slot";       break;
+    case MemberType_Friend:      memType="friend";     break;
+    case MemberType_DCOP:        memType="dcop";       break;
+    case MemberType_Property:    memType="property";   break;
+    case MemberType_Event:       memType="event";      break;
+    case MemberType_Interface:   memType="interface";  break;
+    case MemberType_Service:     memType="service";    break;
+    case MemberType_Sequence:    memType="sequence";   break;
+    case MemberType_Dictionary:  memType="dictionary"; break;
   }
   QCString scopeName;
   if (md->getClassDef())
@@ -550,7 +554,8 @@ static void generateDocbookForMember(MemberDef *md,FTextStream &t,Definition *de
         }
       }
     }
-    else if (md->memberType()==MemberType_Typedef) 
+    else if (md->memberType()==MemberType_Typedef || md->memberType()==MemberType_Sequence ||
+             md->memberType()==MemberType_Dictionary)
     {
       t << "                            <para>" << memType;
       t << " ";
@@ -834,15 +839,17 @@ static void generateDocbookSection(Definition *d,FTextStream &t,MemberList *ml,c
 
   switch (ml->listType())
   {
-    case MemberListType_decDefineMembers:  title=theTranslator->trDefines();             desctitle=theTranslator->trDefineDocumentation();            break;
-    case MemberListType_decTypedefMembers: title=theTranslator->trTypedefs();            desctitle=theTranslator->trTypedefDocumentation();           break;
-    case MemberListType_decEnumMembers:    title=theTranslator->trEnumerations();        desctitle=theTranslator->trEnumerationTypeDocumentation();   break;
-    case MemberListType_decFuncMembers:    title=theTranslator->trFunctions();           desctitle=theTranslator->trFunctionDocumentation();          break;
-    case MemberListType_decVarMembers:     title=theTranslator->trVariables();           desctitle=theTranslator->trVariableDocumentation();          break;
-    case MemberListType_pubAttribs:        title=theTranslator->trPublicAttribs();       desctitle=theTranslator->trMemberDataDocumentation();        break;
-    case MemberListType_priAttribs:        title=theTranslator->trPrivateAttribs();      desctitle=theTranslator->trMemberDataDocumentation();        break;
-    case MemberListType_proAttribs:        title=theTranslator->trProtectedAttribs();    desctitle=theTranslator->trMemberDataDocumentation();        break;
-    default:                               title="";                    desctitle="";                                  break;
+    case MemberListType_decDefineMembers:     title=theTranslator->trDefines();             desctitle=theTranslator->trDefineDocumentation();            break;
+    case MemberListType_decTypedefMembers:    title=theTranslator->trTypedefs();            desctitle=theTranslator->trTypedefDocumentation();           break;
+    case MemberListType_decSequenceMembers:   title=theTranslator->trSequences();           desctitle=theTranslator->trSequenceDocumentation();        break;
+    case MemberListType_decDictionaryMembers: title=theTranslator->trDictionaries();        desctitle=theTranslator->trDictionaryDocumentation();        break;
+    case MemberListType_decEnumMembers:       title=theTranslator->trEnumerations();        desctitle=theTranslator->trEnumerationTypeDocumentation();   break;
+    case MemberListType_decFuncMembers:       title=theTranslator->trFunctions();           desctitle=theTranslator->trFunctionDocumentation();          break;
+    case MemberListType_decVarMembers:        title=theTranslator->trVariables();           desctitle=theTranslator->trVariableDocumentation();          break;
+    case MemberListType_pubAttribs:           title=theTranslator->trPublicAttribs();       desctitle=theTranslator->trMemberDataDocumentation();        break;
+    case MemberListType_priAttribs:           title=theTranslator->trPrivateAttribs();      desctitle=theTranslator->trMemberDataDocumentation();        break;
+    case MemberListType_proAttribs:           title=theTranslator->trProtectedAttribs();    desctitle=theTranslator->trMemberDataDocumentation();        break;
+    default:                                  title="";                    desctitle="";                                  break;
   }
 
   if (detailed) 

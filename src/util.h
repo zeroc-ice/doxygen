@@ -27,6 +27,7 @@
 #include "types.h"
 #include "sortdict.h"
 #include "docparser.h"
+#include "classdef.h"
 
 //--------------------------------------------------------------------
 
@@ -259,7 +260,7 @@ void initClassHierarchy(ClassSDict *cl);
 
 bool hasVisibleRoot(BaseClassList *bcl);
 bool classHasVisibleChildren(ClassDef *cd);
-bool namespaceHasVisibleChild(NamespaceDef *nd,bool includeClasses);
+bool namespaceHasVisibleChild(NamespaceDef *nd,bool includeClasses,bool filterClasses,ClassDef::CompoundType ct);
 bool classVisibleInIndex(ClassDef *cd);
 
 int minClassDistance(const ClassDef *cd,const ClassDef *bcd,int level=0);

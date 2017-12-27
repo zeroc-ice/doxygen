@@ -570,6 +570,40 @@ class Translator
     virtual QCString trSingletonReference(const char *sName) = 0;
     virtual QCString trServiceGeneratedFromFiles(bool single) = 0;
     virtual QCString trSingletonGeneratedFromFiles(bool single) = 0;
+
+//////////////////////////////////////////////////////////////////////////
+// new since 1.8.14
+//////////////////////////////////////////////////////////////////////////
+
+    virtual QCString trConstants() = 0;
+    virtual QCString trConstantDocumentation() = 0;
+    virtual QCString trSequences() = 0;
+    virtual QCString trSequenceDocumentation() = 0;
+    virtual QCString trDictionaries() = 0;
+    virtual QCString trDictionaryDocumentation() = 0;
+    virtual QCString trSliceInterfaces() = 0;
+    virtual QCString trInterfaceIndex() = 0;
+    virtual QCString trInterfaceList() = 0;
+    virtual QCString trInterfaceListDescription() = 0;
+    virtual QCString trInterfaceHierarchy() = 0;
+    virtual QCString trInterfaceHierarchyDescription() = 0;
+    virtual QCString trInterfaceDocumentation() = 0;
+    virtual QCString trStructs() = 0;
+    virtual QCString trStructIndex() = 0;
+    virtual QCString trStructList() = 0;
+    virtual QCString trStructListDescription() = 0;
+    virtual QCString trStructDocumentation() = 0;
+    virtual QCString trExceptionIndex() = 0;
+    virtual QCString trExceptionList() = 0;
+    virtual QCString trExceptionListDescription() = 0;
+    virtual QCString trExceptionHierarchy() = 0;
+    virtual QCString trExceptionHierarchyDescription() = 0;
+    virtual QCString trExceptionDocumentation() = 0;
+    virtual QCString trCompoundReferenceSlice(const char *clName, ClassDef::CompoundType compType, bool isLocal) = 0;
+    virtual QCString trOperations() = 0;
+    virtual QCString trOperationDocumentation() = 0;
+    virtual QCString trDataMembers() = 0;
+    virtual QCString trDataMemberDocumentation() = 0;
 };
 
 #endif

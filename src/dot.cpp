@@ -2245,7 +2245,10 @@ void DotGfxHierarchyTable::createGraph(DotNode *n,FTextStream &out,
   QCString baseName;
   QCString imgExt = getDotImageExtension();
   QCString imgFmt = Config_getEnum(DOT_IMAGE_FORMAT);
-  baseName.sprintf("inherit_graph_%d",id);
+  if (m_prefix.isEmpty())
+    baseName.sprintf("inherit_graph_%d",id);
+  else
+    baseName.sprintf("%sinherit_graph_%d",m_prefix.data(),id);
   QCString imgName = baseName+"."+ imgExt;
   QCString mapName = baseName+".map";
   QCString absImgName = QCString(d.absPath().data())+"/"+imgName;
@@ -2437,6 +2440,7 @@ void DotGfxHierarchyTable::addHierarchy(DotNode *n,ClassDef *cd,bool hideSuper)
 
 void DotGfxHierarchyTable::addClassList(ClassSDict *cl)
 {
+  static bool sliceOpt = Config_getBool(OPTIMIZE_OUTPUT_SLICE);
   ClassSDict::Iterator cli(*cl);
   ClassDef *cd;
   for (cli.toLast();(cd=cli.current());--cli)
@@ -2445,6 +2449,10 @@ void DotGfxHierarchyTable::addClassList(ClassSDict *cl)
     if (cd->getLanguage()==SrcLangExt_VHDL &&
         (VhdlDocGen::VhdlClasses)cd->protection()!=VhdlDocGen::ENTITYCLASS
        )
+    {
+      continue;
+    }
+    if (sliceOpt && cd->compoundType() != m_classType)
     {
       continue;
     }
@@ -2480,7 +2488,10 @@ void DotGfxHierarchyTable::addClassList(ClassSDict *cl)
   }
 }
 
-DotGfxHierarchyTable::DotGfxHierarchyTable() : m_curNodeNumber(1)
+DotGfxHierarchyTable::DotGfxHierarchyTable(const char *prefix,ClassDef::CompoundType ct)
+  : m_prefix(prefix)
+  , m_classType(ct)
+  , m_curNodeNumber(1)
 {
   m_rootNodes = new QList<DotNode>;
   m_usedNodes = new QDict<DotNode>(1009); 
